@@ -106,7 +106,7 @@ class Lexicase(GeneticAlgorithm):
                  pop_size=100,
                  sampling=FloatRandomSampling(),
                  selection=LexicaseSelection(epsilon_type='constant', epsilon=0),
-                 crossover=SBX(eta=15, prob=0.9),
+                 crossover=SBX(eta=30, prob=0.9),
                  mutation=PM(eta=20),
                  survival=LexSurvival(),
                  output=MultiObjectiveOutput(),

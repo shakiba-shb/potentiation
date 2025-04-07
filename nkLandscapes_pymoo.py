@@ -49,7 +49,8 @@ class nkProblem(ElementwiseProblem):
         nk = eco.NKLandscape(N, K, eco.Random(emp_random))
         x = x.astype(int)
         f = np.empty((N))
-
+        
+        #phenotype = nk.GetFitnesses(eco.BitVector("".join([str(i) for i in x])))
         for i in range(N):
             neighbors = [x[(i + j) % N] for j in range(1, K + 1)]
             number = int("".join(map(str, neighbors)), 2)
