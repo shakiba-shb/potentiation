@@ -17,6 +17,7 @@ from pymoo_lexicase import Lexicase
 from nkLandscapes_pymoo import nkProblem
 from pymoo.indicators.hv import Hypervolume
 
+from nkLandscapes_pymoo import nkProblem, find_best
 
 def experiment (alg_name = None, S = None, N = None, K = None, emprand = None, n_gen = None, seed = None, rdir = ""):
 
@@ -29,7 +30,7 @@ def experiment (alg_name = None, S = None, N = None, K = None, emprand = None, n
     problem = nkProblem(n_var = N, n_obj = N, xl = 0, xu = 1, K = K, emp_random = emprand)
 
     #Define the algorithms
-    if alg_name == "Lexicase":
+    if alg_name == "lex_std":
         algorithm = Lexicase(
             pop_size=S,
             sampling=BinaryRandomSampling(),
@@ -70,11 +71,13 @@ def experiment (alg_name = None, S = None, N = None, K = None, emprand = None, n
     # ind = Hypervolume(pf = opt_F, ref_point=ref_point)
     # hv = ind._do(opt_F)
 
+    best_fitness = find_best(N, K, emprand)
     #final_population_data = {'X': X.tolist(), 'F': F.tolist(), 'opt_X': opt_X.tolist(), 'opt_F': opt_F.tolist()}
 
     folder_name = rdir+f'{alg_name}'
     os.makedirs(folder_name, exist_ok=True)
-    np.savez(folder_name+f'/alg-{alg_name}_S-{S}_N-{N}_K-{K}_emprand-{emprand}_seed-{seed}.npz', X=X, F=F, opt_X=opt_X, opt_F=opt_F)
+    np.savez(folder_name+f'/alg-{alg_name}_S-{S}_N-{N}_K-{K}_emprand-{emprand}_seed-{seed}.npz', X=X, F=F, 
+             opt_X=opt_X, opt_F=opt_F, best_fitness=best_fitness)
     # filename = folder_name+f'/runid-{runid}.json'
     # os.makedirs(folder_name, exist_ok=True)
     # with open(filename, 'w') as of:
