@@ -3,6 +3,7 @@ import numpy as np
 import json
 import argparse
 import os
+import re
 
 from ec_ecology_toolbox import selection_probabilities as eco
 from pymoo.algorithms.moo.nsga2 import NSGA2
@@ -20,12 +21,23 @@ from pymoo.indicators.hv import Hypervolume
 
 from nkLandscapes_pymoo import nkProblem, find_best
 
-def experiment (alg_name = None, S = None, N = None, K = None, emprand = None, n_gen = None, snapshot = None, seed = None, rdir = ""):
+def experiment (snapshotFile = None, replayGen = None, n_gen = None, replaySeed = None, rdir = ""):
 
     runid = uuid.uuid4()
-    print("alg_name = ", alg_name, "S = ", S, "n_var = ", N, "n_obj = ", N, "K", K, "emprand", emprand, "n_gen = ", n_gen,
-         "seed = ", seed, "snapshot", snapshot, "rdir = ", rdir, "runid = ", runid)
+    pattern = r"alg-(?P<alg>.+)_S-(?P<S>\d+)_N-(?P<N>\d+)_K-(?P<K>\d+)_emprand-(?P<emprand>\d+)_seed-(?P<seed>\d+)_snapshot.npz"
     
+    match = re.search(pattern, snapshotFile)
+    if match:
+        alg_name = match.group("alg")
+        S = int(match.group("S"))
+        N = int(match.group("N"))
+        K = int(match.group("K"))
+        emprand = int(match.group("emprand"))
+        seed = int(match.group("seed"))
+
+        init_data = np.load(rdir+alg_name+'/snapshots/'+snapshotFile)
+        init_pop = init_data[f'init_pop_{replayGen}']
+
 
     #Define the problem
     problem = nkProblem(n_var = N, n_obj = N, xl = 0, xu = 1, K = K, emp_random = emprand)
@@ -34,7 +46,7 @@ def experiment (alg_name = None, S = None, N = None, K = None, emprand = None, n
     if alg_name == "lex_std":
         algorithm = Lexicase(
             pop_size=S,
-            sampling=BinaryRandomSampling(),
+            sampling=init_pop,
             crossover=SBX(prob=0, prob_var=0),
             mutation=BitflipMutation(),
             eliminate_duplicates=True
@@ -43,7 +55,7 @@ def experiment (alg_name = None, S = None, N = None, K = None, emprand = None, n
     elif alg_name == "NSGA2":
         algorithm = NSGA2(
             pop_size=S,
-            sampling=BinaryRandomSampling(),
+            sampling=init_pop,
             crossover=SBX(prob=0, prob_var=0),
             mutation=BitflipMutation(),
             eliminate_duplicates=True
@@ -54,7 +66,7 @@ def experiment (alg_name = None, S = None, N = None, K = None, emprand = None, n
     res = minimize(problem,
                 algorithm,
                 termination,
-                seed=seed,
+                seed=replaySeed,
                 save_history=True,
                 verbose=True)
     
@@ -73,40 +85,22 @@ def experiment (alg_name = None, S = None, N = None, K = None, emprand = None, n
     # hv = ind._do(opt_F)
 
     best_fitness = find_best(N, K, emprand)
-    #final_population_data = {'X': X.tolist(), 'F': F.tolist(), 'opt_X': opt_X.tolist(), 'opt_F': opt_F.tolist()}
-    folder_name = rdir+f'{alg_name}'
-    # If snapshot is one, save the population. 
-    if snapshot == True:
-        snapshots = {}
-        for i in range(1, int(int(n_gen)/50) + 1):
-            gen = 50 * i
-            snapshots[f'init_pop_{gen}'] = res.history[gen-1].pop.get('X')
-
-        new_folder = folder_name + '/snapshots'
-        os.makedirs(new_folder, exist_ok=True)
-        np.savez(new_folder+f'/alg-{alg_name}_S-{S}_N-{N}_K-{K}_emprand-{emprand}_seed-{seed}_snapshot.npz',
-                 **snapshots)
-    elif snapshot == False:
-        os.makedirs(folder_name, exist_ok=True)
-        np.savez(folder_name+f'/alg-{alg_name}_S-{S}_N-{N}_K-{K}_emprand-{emprand}_seed-{seed}.npz', X=X, F=F, 
-             opt_X=opt_X, opt_F=opt_F, best_fitness=best_fitness)
+    folder_name = rdir+f'{alg_name}/replays'
+    os.makedirs(folder_name, exist_ok=True)
+    np.savez(folder_name+f'/alg-{alg_name}_S-{S}_N-{N}_K-{K}_emprand-{emprand}_seed_{seed}_replaySeed-{replaySeed}_replayGen_{replayGen}.npz', X=X, F=F, 
+            opt_X=opt_X, opt_F=opt_F, best_fitness=best_fitness)
     
     
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Run a single comparison experiment')
-    parser.add_argument('-alg_name', type=str, default = 'NSGA2', help='Algorithm to use')
-    parser.add_argument('-S', type=int, default = 100, help='Population size')
-    parser.add_argument('-N', type=int, default = 50, help='Number of objectives/variables')
-    parser.add_argument('-K', type=int, default = 8, help='Number of adjacent bits to look at')
-    parser.add_argument('-emprand', type=int, default = 13, help='Random seed for the landscape')
+    parser.add_argument('-snapshotFile', type=str, default = 'alg-NSGA2_S-100_N-100_K-8_emprand-13_seed-32400_snapshot.npz', help='File containing snapshots.')
+    parser.add_argument('-replayGen', type=int, default = 100, help='The snapshot to replay')
     parser.add_argument('-n_gen', type=int, default = 100, help='Number of generations')
-    parser.add_argument('-seed', type=int, default = 0, help='Random seed')
-    parser.add_argument('--snapshot', type=bool, default=False, help='Take snapshopts of population')
-    parser.add_argument('-rdir', type=str, default = '/mnt/scratch/shahban1/potentiation_round3/', help='Results directory')
+    parser.add_argument('-replaySeed', type=int, default = 0, help='Random seed for replays')
+    parser.add_argument('-rdir', type=str, default = '/home/shakiba/potentiation/results/', help='Results directory')
     args = parser.parse_args()
 
-    experiment(alg_name = args.alg_name, S = args.S, N = args.N, K = args.K, emprand= args.emprand, n_gen = args.n_gen,
-                seed = args.seed, snapshot = args.snapshot, rdir = args.rdir)
+    experiment(snapshotFile = args.snapshotFile, replayGen = args.replayGen, n_gen = args.n_gen, replaySeed = args.replaySeed, rdir = args.rdir)
 
 

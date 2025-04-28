@@ -27,6 +27,9 @@ n_obj = N
 #     for j in range(2**K):
 #         print(i, j, nk.GetFitness(i,j))
 
+init_pop_file = np.load("/mnt/scratch/shahban1/potentiation_round2/NSGA2/snapshots/alg-NSGA2_S-100_N-100_K-8_emprand-13_seed-6654_snapshot.npz")
+init_pop = init_pop_file['init_pop_50']
+
 problem = nkProblem(n_var = N, n_obj = N, xl = 0, xu = 1, K = K, emp_random = emp_random)
 algorithm = NSGA2(
     pop_size=100,
